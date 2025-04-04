@@ -40,3 +40,14 @@
 .read-the-docs {
   color: #888;
 }
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.app-page {
+  display: flex;
+  flex-direction: column;
+}

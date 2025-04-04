@@ -1,12 +1,15 @@
 {
 	"folders": [
 		{
+			"name": "functions",
 			"path": "functions"
 		},
 		{
+			"name": "webapp",
 			"path": "webapp"
 		},
 		{
+			"name": "joyous-connect4",
 			"path": "."
 		}
 	],

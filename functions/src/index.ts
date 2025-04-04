@@ -7,20 +7,24 @@
  * See a full list of supported triggers at https://firebase.google.com/docs/functions
  */
 
+// const functions = require("firebase-functions");
+// exports.helloWorld = functions.https.onRequest((request, response) => {
+//   response.send("Hello from Firebase!");
+// });
+
 import {onCall,onRequest,HttpsError,CallableRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
+import {NUM_ROW, NUM_COL, CellState, Connect4Game, BoardState} from "../../types/connect4";
 
-export const adminApp = admin.initializeApp();
-export const db       = adminApp.firestore();
-
+const adminApp = admin.initializeApp();
+const db       = adminApp.firestore();
 const GAMES_PATH = 'games'
 
 // example
-export const helloWorld = onRequest((request, response) => {
+const helloWorld = onRequest((request, response) => {
   logger.info("Hello logs!", {structuredData: true});
   response.send("Hello from Firebase!");
-
 });
 
 // ** BASIC UTIL ** //
@@ -67,28 +71,28 @@ const Require = {
 
 // ** GAME UTIL ** //
 
-const NUM_ROW = 6
-const NUM_COL = 7
+// const NUM_ROW = 6
+// const NUM_COL = 7
 
-type CellState = '' | 'R' | 'Y';
+// type CellState = '' | 'R' | 'Y';
 
-// Based game data
-interface Connect4Game {
-  /** current board state
-   *  - stored [row][col]
-   *  - [0][0] = bottom left cell
-   */
-  board: CellState[][];
-  /** uid for red player */
-  playerR: String;
-  /** uid for yellow player */
-  playerY?: String;
-  /** uid for active player */
-  playerTurn: String;
-  /** uid for player who won */
-  playerWon?: String;
-}
-type BoardState = Connect4Game["board"];
+// // Based game data
+// interface Connect4Game {
+//   /** current board state
+//    *  - stored [row][col]
+//    *  - [0][0] = bottom left cell
+//    */
+//   board: CellState[][];
+//   /** uid for red player */
+//   playerR: String;
+//   /** uid for yellow player */
+//   playerY?: String;
+//   /** uid for active player */
+//   playerTurn: String;
+//   /** uid for player who won */
+//   playerWon?: String;
+// }
+// type BoardState = Connect4Game["board"];
 
 const findMoveRow = (board: BoardState, moveCol: number) => board
   .map(row => row[moveCol])
@@ -96,12 +100,12 @@ const findMoveRow = (board: BoardState, moveCol: number) => board
 
 // ** FUNCTIONS ** //
 
-export const checkAuth = onCall(async (req, rsp) => {
+const checkAuth = onCall(async (req, rsp) => {
   const uid = Require.auth(req);
   return {uid};
 });
 
-export const createGame = onCall(async (req, rsp) => {
+const createGame = onCall({cors:true}, async (req, rsp) => {
   const uid = Require.auth(req);
   const gameData: Connect4Game = {
     board: new Array(NUM_ROW).fill(
@@ -114,7 +118,7 @@ export const createGame = onCall(async (req, rsp) => {
   return {gameId: gameDoc.id};
 });
 
-export const joinGame = onCall(async (req, rsp) => {
+const joinGame = onCall({cors:true}, async (req, rsp) => {
   const uid = Require.auth(req);
   const { gameId } = Require.args(req.data, ['gameId'])
 
@@ -131,7 +135,7 @@ export const joinGame = onCall(async (req, rsp) => {
   });
 });
 
-export const leaveGame = onCall(async (req, rsp) => {
+const leaveGame = onCall({cors:true}, async (req, rsp) => {
   const uid = Require.auth(req);
   const { gameId } = Require.args(req.data, ['gameId'])
 
@@ -147,7 +151,7 @@ export const leaveGame = onCall(async (req, rsp) => {
   });
 });
 
-export const doMove = onCall(async (req, rsp) => {
+const doMove = onCall({cors:true}, async (req, rsp) => {
   const uid = Require.auth(req);
   const { gameId, moveCol } = Require.args(req.data, ['gameId', 'move']);
 
@@ -185,3 +189,5 @@ export const doMove = onCall(async (req, rsp) => {
     });
   });
 });
+
+export { helloWorld, checkAuth, createGame, joinGame, leaveGame, doMove }
