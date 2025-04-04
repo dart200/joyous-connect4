@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "functions"
+		},
+		{
+			"path": "webapp"
+		},
+		{
+			"path": "."
+		}
+	],
+	"settings": {}
+}
