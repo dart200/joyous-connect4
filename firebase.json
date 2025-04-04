@@ -35,10 +35,10 @@
     ]
   },
   "emulators": {
-    "apphosting": {
-      "port": 5002,
-      "rootDirectory": "./"
-    },
+    // "apphosting": {
+    //   "port": 5002,
+    //   "rootDirectory": "./"
+    // },
     "auth": {
       "port": 9099
     },
