@@ -4,7 +4,7 @@
     "esModuleInterop": true,
     "moduleResolution": "nodenext",
     "noImplicitReturns": true,
-    "noUnusedLocals": true,
+    // "noUnusedLocals": true,
     "outDir": "lib",
     "sourceMap": true,
     "strict": true,
@@ -13,5 +13,5 @@
   "compileOnSave": true,
   "include": [
     "src"
-, "src/index.ts"  ]
+  ]
 }

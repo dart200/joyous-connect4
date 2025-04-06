@@ -1,5 +1,12 @@
-.game-div {
-  
+.game-root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.game-board {
+  display: flex;
+  flex-direction: row;
 }
 
 .btns {
@@ -9,7 +16,8 @@
   align-items: flex-start;
 }
 
-.gameid-div {
+.gameid {
+  width: 100%;
   display: flex;
   gap: 10px;
 }

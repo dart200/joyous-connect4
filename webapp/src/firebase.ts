@@ -6,7 +6,7 @@ import {Functions, getFunctions, connectFunctionsEmulator, httpsCallable} from '
 import {Firestore, getFirestore, connectFirestoreEmulator, doc, onSnapshot} from 'firebase/firestore';
 
 import firebaseJson from '../../firebase.json';
-import { Connect4Game } from '../../types/connect4';
+import { Connect4Game, GAMES_PATH } from '../../common/connect4';
 
 const firebaseConfig = {
   apiKey: "AIzaSyByIeHloNs8ZUSuGUKReoA1JRH6tC0S86I",
@@ -18,7 +18,7 @@ const firebaseConfig = {
   measurementId: "G-78J9MPD0K7"
 };
 
-// test user
+// more like connection rather than user
 export class User {
   app: FirebaseApp;
   db: Firestore;
@@ -36,7 +36,7 @@ export class User {
     this.functions = getFunctions(this.app);
     this.auth = getAuth(this.app);
   
-    if (true) {
+    if (emulator) {
       connectFirestoreEmulator(this.db, 'localhost', firebaseJson.emulators.firestore.port);
       connectFunctionsEmulator(this.functions, 'localhost', firebaseJson.emulators.functions.port);
       connectAuthEmulator(this.auth, 'http://localhost:'+firebaseJson.emulators.auth.port, {disableWarnings: true});
@@ -52,9 +52,10 @@ export class User {
   };
 
   subGame = (id: string, func: (game: Connect4Game) => any) => {
+    console.log("subbing game", id)
     if (this.unsubGame)
       this.unsubGame();
-    const gameDoc = doc(this.db, 'games/'+id);
+    const gameDoc = doc(this.db, GAMES_PATH+'/'+id);
     this.unsubGame = onSnapshot(gameDoc, doc => {
       const data = doc.data();
       func(data as Connect4Game);
@@ -63,7 +64,7 @@ export class User {
 
   cloudFunc = (name:string, args?:{}) => 
     httpsCallable(this.functions, name)(args)
-      .then(res => res.data as any);
+      .then(res => res.data as any)
 
   checkAuth = () => this.cloudFunc('checkAuth');
   createGame = () => this.cloudFunc('createGame').then(data => data as {gameId: string});

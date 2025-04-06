@@ -7,96 +7,22 @@
  * See a full list of supported triggers at https://firebase.google.com/docs/functions
  */
 
-// const functions = require("firebase-functions");
-// exports.helloWorld = functions.https.onRequest((request, response) => {
-//   response.send("Hello from Firebase!");
-// });
+import {onCall, onRequest} from "firebase-functions/v2/https";
 
-import {onCall,onRequest,HttpsError,CallableRequest} from "firebase-functions/v2/https";
-import * as logger from "firebase-functions/logger";
-import * as admin from "firebase-admin";
-import {NUM_ROW, NUM_COL, CellState, Connect4Game, BoardState} from "../../types/connect4";
+import { db, logger } from './include'
+import * as Require from './require';
+import * as Err from './err';
+import {NUM_ROW, NUM_COL, CellState, Connect4Game, findMoveRow, GAMES_PATH, BoardState} from "../../common/connect4";
 
-const adminApp = admin.initializeApp();
-const db       = adminApp.firestore();
-const GAMES_PATH = 'games'
+// Start writing functions
+// https://firebase.google.com/docs/functions/typescript
 
-// example
 const helloWorld = onRequest((request, response) => {
-  logger.info("Hello logs!", {structuredData: true});
-  response.send("Hello from Firebase!");
+  logger.info("Hello logs!", {structuredData: true})
+  response.send("Hello from Firebase!")
 });
 
-// ** BASIC UTIL ** //
-
-const error = {
-  auth: () => {throw new HttpsError('permission-denied', 'Invalid Authentication')}, 
-  failed: (msg: string) => {throw new HttpsError('failed-precondition', msg)},
-  arg: (msg: string) => {throw new HttpsError('invalid-argument', msg)},
-};
-
-/** require stuff */
-const Require = {
-  /** require certain args to exist, otherwise throw error */
-  args: (args: {[id: string]: any}, reqArgs: string[]) => {
-    for (const argName of reqArgs) {
-      if (typeof args[argName] === 'undefined')
-        throw error.arg('Missing arg: '+argName);
-    }
-    return args;
-  },
-  /** require auth to exist, otherwise throw error */
-  auth: (context: CallableRequest) => {
-    if (!context.auth)
-      throw error.auth();
-    return context.auth.uid;
-  },
-  /** require document to exist, otherwise throw error */
-  doc: async (path: string, txn?: admin.firestore.Transaction) => {
-    const ref = db.doc(path);
-    const doc = await (txn ? txn?.get(ref) : ref.get());
-    if (!doc.exists)
-      throw error.failed('Missing doc: '+path);
-    
-    return {ref, doc};
-  },
-  /** require game to exist, otherwise throw error */
-  game: (id: string, txn?: admin.firestore.Transaction) =>
-    Require.doc(GAMES_PATH+'/'+id, txn)
-      .then(({ref, doc}) => ({
-        gameRef: ref,
-        game: doc.data() as Connect4Game
-      })),
-};
-
 // ** GAME UTIL ** //
-
-// const NUM_ROW = 6
-// const NUM_COL = 7
-
-// type CellState = '' | 'R' | 'Y';
-
-// // Based game data
-// interface Connect4Game {
-//   /** current board state
-//    *  - stored [row][col]
-//    *  - [0][0] = bottom left cell
-//    */
-//   board: CellState[][];
-//   /** uid for red player */
-//   playerR: String;
-//   /** uid for yellow player */
-//   playerY?: String;
-//   /** uid for active player */
-//   playerTurn: String;
-//   /** uid for player who won */
-//   playerWon?: String;
-// }
-// type BoardState = Connect4Game["board"];
-
-const findMoveRow = (board: BoardState, moveCol: number) => board
-  .map(row => row[moveCol])
-  .findIndex((val) => val === '')
 
 // ** FUNCTIONS ** //
 
@@ -107,15 +33,20 @@ const checkAuth = onCall(async (req, rsp) => {
 
 const createGame = onCall({cors:true}, async (req, rsp) => {
   const uid = Require.auth(req);
+
+  const board: BoardState = {};
+  for (let row = 0; row < NUM_ROW; ++row) {
+    board[row] = new Array(NUM_COL).fill('');
+  }  
+
   const gameData: Connect4Game = {
-    board: new Array(NUM_ROW).fill(
-      () => new Array(NUM_COL).fill("")
-    ),
+    board,
     playerR: uid,
     playerTurn: uid,
   }
-  const gameDoc = await db.collection(GAMES_PATH).add(gameData);
-  return {gameId: gameDoc.id};
+  console.log(gameData)
+  const gameRef = await db.collection(GAMES_PATH).add(gameData)
+  return {gameId: gameRef.id}
 });
 
 const joinGame = onCall({cors:true}, async (req, rsp) => {
@@ -123,17 +54,19 @@ const joinGame = onCall({cors:true}, async (req, rsp) => {
   const { gameId } = Require.args(req.data, ['gameId'])
 
   await db.runTransaction (async (txn) => {
-    const {gameRef, game} = await Require.game(gameId, txn);
+    const {gameRef, game} = await Require.game(gameId, txn)
+    if (uid === game.playerR || uid === game.playerY)
+      return;
 
     if (!game.playerR) {
       return txn.update(gameRef, {'playerR': uid})
     } else if (!game.playerY) {
       return txn.update(gameRef, {'playerY': uid})
     } else {
-      throw error.failed("Game is full")
+      throw Err.failed("Game is full")
     }
-  });
-});
+  })
+})
 
 const leaveGame = onCall({cors:true}, async (req, rsp) => {
   const uid = Require.auth(req);
@@ -146,42 +79,50 @@ const leaveGame = onCall({cors:true}, async (req, rsp) => {
     } else if (game.playerY === uid) {
       return txn.update(gameRef, {'playerY': ''})
     } else {
-      throw error.failed('Player not in game')
+      throw Err.failed('Player not in game')
     }
   });
 });
 
-const doMove = onCall({cors:true}, async (req, rsp) => {
+const playMove = onCall({cors:true}, async (req, rsp) => {
   const uid = Require.auth(req);
-  const { gameId, moveCol } = Require.args(req.data, ['gameId', 'move']);
+  const { gameId, moveCol } = Require.args(req.data, ['gameId', 'moveCol']);
 
   await db.runTransaction (async (txn) => {
     const {gameRef, game} = await Require.game(gameId, txn);
-
+    
+    if (!game.playerR || !game.playerY)
+      throw Err.failed('Need both players for turn')
     // check player turn
     if (game.playerTurn !== uid)
-      throw error.failed('Not player\'s turn');
+      throw Err.failed('Not player\'s turn');
     const playerVal: CellState =
       game.playerR === uid ? 'R' :
         game.playerY === uid ? 'Y' :
           ''
     if (!playerVal)
-      throw error.failed('Player not found?');
+      throw Err.failed('Player not found?');
 
     if (moveCol < 0 || moveCol >= NUM_COL)
-      throw error.arg(moveCol+' is not a valid row');
+      throw Err.arg(moveCol+' is not a valid row');
 
     // find move pos
     const moveRow = findMoveRow(game.board, moveCol);
     if (moveRow === -1)
-      throw error.arg(moveCol+' is a full row');
+      throw Err.arg(moveCol+' is a full row');
+    console.log('found move', {moveRow, moveCol})
 
     // update game board for win detection:
-    game.board[moveCol][moveRow] = playerVal;
+    game.board[moveRow][moveCol] = playerVal;
+
+    console.log(game.board)
 
     // TODO win condition
 
-    return gameRef.update({
+    // why can't you just do this??
+    //    return gameRef.update({
+
+    return txn.update(gameRef, {
       // update game board
       'board': game.board,
       // set next turn
@@ -190,4 +131,4 @@ const doMove = onCall({cors:true}, async (req, rsp) => {
   });
 });
 
-export { helloWorld, checkAuth, createGame, joinGame, leaveGame, doMove }
+export { helloWorld, checkAuth, createGame, joinGame, leaveGame, playMove }
