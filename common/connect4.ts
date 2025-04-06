@@ -45,6 +45,44 @@ export const findMoveRow = (board: BoardState, moveCol: number) => {
   return -1
 }
 
-export const findWin = (board: BoardState) => {
+export const countDir = (
+  board: BoardState,
+  moveRow:number,
+  moveCol:number,
+  rowDir:number,
+  colDir:number,
+) => {
+  let col = moveCol
+  let row = moveRow
+  let cnt = 0
+  let color = board[moveRow][moveCol]
+
+  do {
+    col += colDir
+    row += rowDir
+
+    if (col < 0 || col >= NUM_COL || row < 0 || row >= NUM_ROW)
+      return cnt;
+
+    console.log({row,col});
+    if (board[row][col] === color) {
+      cnt += 1
+    } else {
+      return cnt;
+    }
+  } while (true)
+}
+
+export const findWin = (board: BoardState, moveRow:number, moveCol:number) => {
+  const cntDir = (rowDir:number,colDir:number) => countDir(board, moveRow, moveCol, rowDir, colDir);
   
+  const vertCnt = cntDir(1,0) + cntDir(-1,0) + 1;
+  const horzCnt = cntDir(0,1) + cntDir(0,-1) + 1;
+  const diag1Cnt = cntDir(1,1) + cntDir(-1,-1) + 1;
+  const diag2Cnt = cntDir(1,-1) + cntDir(-1,1) + 1;
+
+  if ([vertCnt, horzCnt, diag1Cnt, diag2Cnt].find(cnt => cnt === 4))
+    return board[moveRow][moveCol];
+  
+  return ''
 }

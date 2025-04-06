@@ -98,6 +98,8 @@ export const Game = (args: {user: User}) => {
 
   const loading = loadingNew || loadingMove || loadingJoin;
   const playerTurn = user.auth.currentUser?.uid === gameData?.playerTurn;
+  const playerWon = user.auth.currentUser?.uid === gameData?.playerWon;
+  const playerLost = gameData?.playerWon && user.auth.currentUser?.uid !== gameData?.playerWon
 
   return (
     <div className="game-root">
@@ -106,8 +108,10 @@ export const Game = (args: {user: User}) => {
           <Typography>GameID: {gameId}</Typography>
           {playingAs &&
             <Typography>
-              Playing as {playingAs === "R" ? "Red" : "Yellow"}.
-              {playerTurn ? "Your turn!" : null}
+              Playing as {playingAs === "R" ? "Red" : "Yellow"}. 
+              {playerTurn ? " Your turn!" : null}
+              {playerWon ? " You WON!!!!!" : null}
+              {playerLost ? " You Lost :(" : null}
             </Typography>}
         </div>
         <div className="game-board">

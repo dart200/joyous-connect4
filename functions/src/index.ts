@@ -12,7 +12,7 @@ import {onCall, onRequest} from "firebase-functions/v2/https";
 import { db, logger } from './include'
 import * as Require from './require';
 import * as Err from './err';
-import {NUM_ROW, NUM_COL, CellState, Connect4Game, findMoveRow, GAMES_PATH, BoardState} from "../../common/connect4";
+import {NUM_ROW, NUM_COL, CellState, Connect4Game, findMoveRow, GAMES_PATH, BoardState, findWin} from "../../common/connect4";
 
 // Start writing functions
 // https://firebase.google.com/docs/functions/typescript
@@ -91,6 +91,8 @@ const playMove = onCall({cors:true}, async (req, rsp) => {
   await db.runTransaction (async (txn) => {
     const {gameRef, game} = await Require.game(gameId, txn);
     
+    if (game.playerWon)
+      throw Err.failed('Game already won')
     if (!game.playerR || !game.playerY)
       throw Err.failed('Need both players for turn')
     // check player turn
@@ -115,19 +117,24 @@ const playMove = onCall({cors:true}, async (req, rsp) => {
     // update game board for win detection:
     game.board[moveRow][moveCol] = playerVal;
 
-    console.log(game.board)
-
-    // TODO win condition
+    // do win detection
+    const foundWin = findWin(game.board, moveRow, moveCol) === playerVal
 
     // why can't you just do this??
     //    return gameRef.update({
 
-    return txn.update(gameRef, {
+    const updateDoc: Partial<Connect4Game> = {
       // update game board
-      'board': game.board,
+      board: game.board,
       // set next turn
-      'playerTurn': playerVal === 'R' ? game.playerY : game.playerR
-    });
+      playerTurn: playerVal === 'R' ? game.playerY : game.playerR,
+      // if win found, set playerWon
+      ...foundWin && { 
+        playerWon: uid,
+        playerTurn: '',
+      }
+    }
+    return txn.update(gameRef, updateDoc);
   });
 });
 
