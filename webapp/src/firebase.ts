@@ -62,7 +62,7 @@ export class User {
     const q = query(games,
       and(
         or(where('playerR', '==', this.u?.uid), where('playerY', '==', this.u?.uid)),
-        or(where('playerWon', '==', ''), where('draw', '==', false))
+        and(where('playerWon', '==', ''), where('draw', '==', false))
       )
     )
     

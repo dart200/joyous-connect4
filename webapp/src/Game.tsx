@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { User } from "./firebase"
 import { CellState, Connect4Game, GAMES_PATH, NUM_COL, NUM_ROW } from "../../common/connect4";
 
-import {alpha} from "@mui/material";
+import {alpha, Slide} from "@mui/material";
 import Box, { BoxProps } from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 
@@ -18,6 +18,7 @@ const GameCell = (props: {cell: CellState}) => (
     }}
   >
     {props.cell && (
+      <Slide direction="down" in={true} mountOnEnter unmountOnExit>
         <Box sx={{
           width: 75,
           height: 75,
@@ -25,8 +26,9 @@ const GameCell = (props: {cell: CellState}) => (
           bgcolor: props.cell === 'R' ? 'error.main'
             : props.cell === 'Y' ? 'warning.main'
               : ''
-        }}
-      />
+          }}
+        />
+      </Slide>
     )}
   </Box>
 )

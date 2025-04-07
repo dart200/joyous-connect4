@@ -1,0 +1,18 @@
+
+SETUP:
+
+$ cd ./functions
+$ npm install
+
+$ cd ./hosting
+$ npm install
+
+EMULATORS:
+
+$ firebase init
+  - setup firestore, auth, and cloud functions, 
+$ firebase emulators:start
+
+DEPLOY:
+
+$ firebase deploy
