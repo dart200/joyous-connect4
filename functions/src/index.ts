@@ -228,8 +228,8 @@ const playMove = onCall({cors:true}, async (req, rsp) => {
 /**
  * Clean public games list every min
  */
-const gameListJob = onSchedule("* * * * *", async () => {
-
+const gameTimeout = onSchedule("* * * * *", async () => {
+  
 })
 
 export { helloWorld, checkAuth, createGame, joinGame, leaveGame, playMove }

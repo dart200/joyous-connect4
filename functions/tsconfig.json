@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "baseUrl": "./src",
     "module": "NodeNext",
     "esModuleInterop": true,
     "moduleResolution": "nodenext",

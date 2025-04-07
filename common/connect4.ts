@@ -1,4 +1,4 @@
-import { Timestamp } from "@google-cloud/firestore";
+import { Timestamp } from "include";
 
 export const GAMES_PATH = 'games'
 export const NUM_ROW = 6

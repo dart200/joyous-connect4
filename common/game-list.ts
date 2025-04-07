@@ -1,4 +1,4 @@
-import { Timestamp } from "@google-cloud/firestore";
+import { Timestamp } from "include";
 
 export const GAME_LIST_PUBLIC = 'public/game-list';
 export const GAME_LIST_EVENT_TRIGGER = 'admin/game-list';

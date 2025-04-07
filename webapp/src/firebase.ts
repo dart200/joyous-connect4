@@ -3,11 +3,11 @@
 import {FirebaseApp, initializeApp} from 'firebase/app';
 import {Auth, getAuth, connectAuthEmulator, signInAnonymously} from 'firebase/auth';
 import {Functions, getFunctions, connectFunctionsEmulator, httpsCallable} from 'firebase/functions';
-import {Firestore, getFirestore, connectFirestoreEmulator, doc, onSnapshot, query, collection, where, or, and, getDocs,} from 'firebase/firestore';
+import {Firestore, getFirestore, connectFirestoreEmulator, doc, onSnapshot, query, collection, where, or, and, getDocs} from 'firebase/firestore';
 
 import firebaseJson from '../../firebase.json';
 import { Connect4Game, GAMES_PATH } from '../../common/connect4';
-import { GAME_LIST_PUBLIC, GamesListPublic } from '../../common/game-list';
+import { GamesListPublic } from '../../common/game-list';
 
 const firebaseConfig = {
   apiKey: "AIzaSyByIeHloNs8ZUSuGUKReoA1JRH6tC0S86I",
