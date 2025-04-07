@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { User } from "./firebase"
-import { CellState, Connect4Game, GAMES_PATH, NUM_COL, NUM_ROW } from "../../common/connect4";
-
 import {alpha, Slide} from "@mui/material";
 import Box, { BoxProps } from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
+import { useNotifications } from '@toolpad/core/useNotifications';
+
+import { User } from "./firebase"
+import { CellState, Connect4Game, GAMES_PATH, NUM_COL, NUM_ROW } from "../../common/connect4";
 
 const GameCell = (props: {cell: CellState}) => (
   <Box
@@ -48,7 +49,8 @@ const GameCol = (props: BoxProps & {playerTurn: boolean}) => (
 )
 
 export const Game = (args: {user: User, gameId: string}) => {
-  const {user,gameId} = args;
+  const notifications = useNotifications()
+  const {user,gameId} = args
 
   const [gameData, setGameData] = useState<Connect4Game|null>(null);
   useEffect(() => gameId ? user.subDoc(GAMES_PATH+'/'+gameId, setGameData) : undefined, [gameId])
@@ -65,6 +67,7 @@ export const Game = (args: {user: User, gameId: string}) => {
   const onClickMove = (moveCol: number) => {
     setLoadingMove(true);
     user.playMove(gameId, moveCol)
+      .catch((e:Error) => notifications.show(e.message, {severity: "error"}))
       .finally(() => setLoadingMove(false))
   }
 

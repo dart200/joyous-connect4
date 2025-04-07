@@ -10,6 +10,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import VideogameAssetIcon from '@mui/icons-material/VideogameAsset';
+import { useNotifications } from '@toolpad/core/useNotifications';
 
 import { GAME_LIST_PUBLIC, GamesListPublic } from "../../common/game-list";
 import { User } from './firebase';
@@ -44,12 +45,14 @@ export const GameList = ({gameList, title, user, setGameId}: {
   user:User,
   setGameId: (gameId:string) => any
 }) => {
+    const notifications = useNotifications()
 
   const [loadingJoin, setLoadingJoin] = useState(false);
   const onJoinGame = (joinId:string) => {
     setLoadingJoin(true);
     user?.joinGame(joinId)
       .then(() => setGameId(joinId))
+      .catch((e:Error) => notifications.show(e.message, {severity: "error"}))
       .finally(() => {setLoadingJoin(false)})
   };
 
