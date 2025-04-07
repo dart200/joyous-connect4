@@ -1,3 +1,5 @@
+import { Timestamp } from "@google-cloud/firestore";
+
 export const GAMES_PATH = 'games'
 export const NUM_ROW = 6
 export const NUM_COL = 7
@@ -17,10 +19,16 @@ export interface Connect4Game {
   playerR: String;
   /** uid for yellow player */
   playerY?: String;
+
   /** uid for active player */
   playerTurn: String;
   /** uid for player who won */
-  playerWon?: String;
+  playerWon: String;
+  /** set if game is a draw */
+  draw: boolean;
+
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 export type BoardState = Connect4Game["board"];
 
@@ -39,7 +47,6 @@ export const boardArr = (board: BoardState) => {
  */
 export const findMoveRow = (board: BoardState, moveCol: number) => {
   for (let row = 0; row < NUM_ROW; row++) {
-    console.log({row, moveCol})
     if (board[row][moveCol] === '') return row
   }
   return -1

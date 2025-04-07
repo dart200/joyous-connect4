@@ -1,16 +1,10 @@
-import "./Game.css"
-import { useCallback, useState } from "react";
+import { useEffect, useState } from "react";
 import { User } from "./firebase"
-import { CellState, Connect4Game, NUM_COL, NUM_ROW } from "../../common/connect4";
+import { CellState, Connect4Game, GAMES_PATH, NUM_COL, NUM_ROW } from "../../common/connect4";
 
 import {alpha} from "@mui/material";
-import Button from '@mui/material/Button';
 import Box, { BoxProps } from '@mui/material/Box';
-import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-
-import AddCircle from '@mui/icons-material/AddCircle';
-import VideogameAssetIcon from '@mui/icons-material/VideogameAsset';
 
 const GameCell = (props: {cell: CellState}) => (
   <Box
@@ -51,36 +45,19 @@ const GameCol = (props: BoxProps & {playerTurn: boolean}) => (
   /> 
 )
 
-export const Game = (args: {user: User}) => {
-  const {user} = args;
+export const Game = (args: {user: User, gameId: string}) => {
+  const {user,gameId} = args;
 
-  const [loadingNew, setLoadingNew] = useState(false);
-  const onNewGame = () => {
-    setLoadingNew(true)
-    user.createGame()
-      .then(({gameId}) => {
-        setGameId(gameId);
-        user.subGame(gameId, (gameData) => setGameData(gameData));
-      })
-      .finally(() => {
-        setLoadingNew(false);
-      })
-  }
+  const [gameData, setGameData] = useState<Connect4Game|null>(null);
+  useEffect(() => gameId ? user.subDoc(GAMES_PATH+'/'+gameId, setGameData) : undefined, [gameId])
 
-  const [loadingJoin, setLoadingJoin] = useState(false);
-  const [joinId, setJoinId] = useState('');
-  const onChangeJoinId = (evt: any) => {
-    setJoinId(evt.target.value);
-  }
-  const onJoinGame = useCallback(() => {
-    setLoadingJoin(true);
-    user.joinGame(joinId)
-      .then(() => {
-        setGameId(joinId);
-        user.subGame(joinId, (gameData) => setGameData(gameData));
-      })
-      .finally(() => {setLoadingJoin(false)})
-  },[joinId, user]);
+  const playingAs: CellState = 
+    user.auth.currentUser?.uid === gameData?.playerR ? 'R' :
+      user.auth.currentUser?.uid === gameData?.playerY ? 'Y' :
+        "";
+  const playerTurn = user.auth.currentUser?.uid === gameData?.playerTurn;
+  const playerWon = user.auth.currentUser?.uid === gameData?.playerWon;
+  const playerLost = gameData?.playerWon && user.auth.currentUser?.uid !== gameData?.playerWon
 
   const [loadingMove, setLoadingMove] = useState(false);
   const onClickMove = (moveCol: number) => {
@@ -88,18 +65,6 @@ export const Game = (args: {user: User}) => {
     user.playMove(gameId, moveCol)
       .finally(() => setLoadingMove(false))
   }
-
-  const [gameId, setGameId] = useState('');
-  const [gameData, setGameData] = useState<Connect4Game|null>(null);
-  const playingAs: CellState = 
-    user.auth.currentUser?.uid === gameData?.playerR ? 'R' :
-      user.auth.currentUser?.uid === gameData?.playerY ? 'Y' :
-        "";
-
-  const loading = loadingNew || loadingMove || loadingJoin;
-  const playerTurn = user.auth.currentUser?.uid === gameData?.playerTurn;
-  const playerWon = user.auth.currentUser?.uid === gameData?.playerWon;
-  const playerLost = gameData?.playerWon && user.auth.currentUser?.uid !== gameData?.playerWon
 
   return (
     <div className="game-root">
@@ -109,9 +74,11 @@ export const Game = (args: {user: User}) => {
           {playingAs &&
             <Typography>
               Playing as {playingAs === "R" ? "Red" : "Yellow"}. 
-              {playerTurn ? " Your turn!" : null}
+              {!gameData.playerY ? " Waiting for player..." : null}
+              {gameData.playerY && playerTurn ? " Your turn!" : null}
               {playerWon ? " You WON!!!!!" : null}
               {playerLost ? " You Lost :(" : null}
+              {gameData.draw ? " Draw" : null}
             </Typography>}
         </div>
         <div className="game-board">
@@ -119,7 +86,7 @@ export const Game = (args: {user: User}) => {
             <GameCol 
               key={col} 
               playerTurn={playerTurn}
-              onClick={playerTurn && !loading ? () => onClickMove(col) : undefined}>
+              onClick={playerTurn && !loadingMove ? () => onClickMove(col) : undefined}>
               {Array.from({length: NUM_ROW}).map((_,row) => (
                 <GameCell cell={gameData.board[row][col]} key={row}/>
               )).reverse()}
@@ -127,35 +94,6 @@ export const Game = (args: {user: User}) => {
           ))}
         </div>
       </>}
-      <div className="btns">
-        <Button
-          variant="contained"
-          onClick={onNewGame}
-          loading={loadingNew}
-          loadingPosition="start"
-          startIcon={<AddCircle />}
-          disabled={false}>
-          New Game
-        </Button>
-        <div className="gameid">
-          <Button 
-            variant="contained"
-            onClick={onJoinGame}
-            loading={loadingJoin}
-            loadingPosition="start"
-            startIcon={<VideogameAssetIcon />}
-            disabled={false}>
-            Join
-          </Button>
-          <TextField 
-            fullWidth
-            id="standard-basic"
-            placeholder="Game ID"
-            variant="standard"
-            value={joinId}
-            onChange={onChangeJoinId}/>
-        </div>
-      </div>
     </div>
   )
 }
