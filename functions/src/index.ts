@@ -9,6 +9,7 @@
 
 import {onCall, onRequest} from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { onMessagePublished } from "firebase-functions/v2/pubsub";
 import { onDocumentUpdated, onDocumentWritten } from "firebase-functions/v2/firestore";
 
 import { db, logger } from './include'
@@ -68,6 +69,7 @@ const updateGameListEvent = async (gameId: string, type: GameListEvent['type']) 
 
 const gameListRef = db.doc(GAME_LIST_PUBLIC)
 export const onProcessGameListEvents = onDocumentWritten(GAME_LIST_EVENT_TRIGGER, async () => {
+
   // get events sorted in ascending order
   const eventQuery = await db.collection(GAME_LIST_EVENTS).orderBy('createdAt','asc').get();
 
@@ -96,7 +98,7 @@ export const onProcessGameListEvents = onDocumentWritten(GAME_LIST_EVENT_TRIGGER
   await gameListRef.set({list: update}, {merge: true});
 
   // delete events
-  return Promise.all(eventQuery.docs.map(d => d.ref.delete()));
+  await Promise.all(eventQuery.docs.map(d => d.ref.delete()));
 })
 
 // ** GAME FUNCTIONS ** //
@@ -138,9 +140,9 @@ const joinGame = onCall({cors:true}, async (req, rsp) => {
     await updateGameListEvent(gameId, 'DELETE');
 
     if (!game.playerR) {
-      return txn.update(gameRef, {'playerR': uid})
+      return txn.update(gameRef, {'playerR': uid} satisfies Partial<Connect4Game>)
     } else if (!game.playerY) {
-      return txn.update(gameRef, {'playerY': uid})
+      return txn.update(gameRef, {'playerY': uid} satisfies Partial<Connect4Game>)
     } else {
       throw Err.failed("Game is full")
     }
@@ -153,10 +155,18 @@ const leaveGame = onCall({cors:true}, async (req, rsp) => {
 
   await db.runTransaction (async (txn) => {
     const {gameRef, game} = await Require.game(gameId, txn);
+    if (!game.playerY) { // delete if 2nd player never joined
+      await updateGameListEvent(gameId, 'DELETE');
+      return txn.delete(gameRef);
+    }
+    if (game.playerWon || game.draw) {
+      return
+    }
+
     if (game.playerR === uid) {
-      return txn.update(gameRef, {'playerR': ''})
+      return txn.update(gameRef, {playerWon: game.playerY} satisfies Partial<Connect4Game>)
     } else if (game.playerY === uid) {
-      return txn.update(gameRef, {'playerY': ''})
+      return txn.update(gameRef, {playerWon: game.playerR} satisfies Partial<Connect4Game>)
     } else {
       throw Err.failed('Player not in game')
     }
@@ -201,9 +211,6 @@ const playMove = onCall({cors:true}, async (req, rsp) => {
 
     const foundDraw = game.board[NUM_ROW-1].every(cell => cell !== '')
 
-    // why can't you just do this??
-    //    return gameRef.update({
-
     const updateDoc: Partial<Connect4Game> = {
       // update game board
       board: game.board,
@@ -229,7 +236,7 @@ const playMove = onCall({cors:true}, async (req, rsp) => {
  * Clean public games list every min
  */
 const gameTimeout = onSchedule("* * * * *", async () => {
-  
+
 })
 
 export { helloWorld, checkAuth, createGame, joinGame, leaveGame, playMove }

@@ -32,10 +32,7 @@ export const PlayerGameList = ({user, setGameId}: {
   setGameId: (gameId:string) => any,
 }) => {
   const [gameList, setGameList] = useState<GamesListPublic|undefined>();
-  useEffect(() => {
-    user.getOpenPlayerGames()
-      .then(list => list && setGameList(list))
-  }, []);
+  useEffect(() => user.subOpenPlayDocs(setGameList), [user]);
   return gameList ? <GameList gameList={gameList} title={"Your Open Games"} user={user} setGameId={setGameId} /> : null
 }
 

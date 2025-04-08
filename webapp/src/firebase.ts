@@ -55,7 +55,7 @@ export class User {
     return onSnapshot(docRef, doc => updateFn(doc.data() as DataType))
   }
 
-  async getOpenPlayerGames () {
+  subOpenPlayDocs (updateFn: (data:GamesListPublic) => any) {
     if (!this.u?.uid) return
 
     const games = collection(this.db, GAMES_PATH);
@@ -66,14 +66,14 @@ export class User {
       )
     )
     
-    const docs = await getDocs(q)
-    const list =  docs.docs.reduce((list, doc) => {
-      const data: Connect4Game = doc.data() as Connect4Game;
-      list[doc.id] = data.createdAt;
-      return list;
-    }, {} as GamesListPublic['list'])
-
-    return {list}
+    return onSnapshot(q, (docs => {
+      const list =  docs.docs.reduce((list, doc) => {
+        const data: Connect4Game = doc.data() as Connect4Game;
+        list[doc.id] = data.createdAt;
+        return list;
+      }, {} as GamesListPublic['list'])
+      updateFn({list});
+    }));
   };
 
   cloudFunc = (name:string, args?:{}) => 
@@ -84,4 +84,5 @@ export class User {
   createGame = () => this.cloudFunc('createGame').then(data => data as {gameId: string});
   joinGame = (gameId: string) => this.cloudFunc('joinGame', {gameId});
   playMove = (gameId: string, moveCol: number) => this.cloudFunc('playMove', {gameId, moveCol});
+  leaveGame = (gameId: string) => this.cloudFunc('leaveGame', {gameId});
 };

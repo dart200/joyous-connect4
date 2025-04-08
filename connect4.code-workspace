@@ -9,6 +9,10 @@
 			"path": "webapp"
 		},
 		{
+			"name": "common",
+			"path": "common"
+		},
+		{
 			"name": "joyous-connect4",
 			"path": "."
 		}

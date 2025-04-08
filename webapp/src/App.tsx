@@ -73,6 +73,8 @@ export const Root = () => {
 
   const onLeaveGame = () => {
     setGameId("");
+    user?.leaveGame(gameId)
+      .catch((e:Error) => notifications.show(e.message, {severity: "error"}))
   }
      
   return (
