@@ -12,11 +12,12 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onMessagePublished } from "firebase-functions/v2/pubsub";
 import { onDocumentUpdated, onDocumentWritten } from "firebase-functions/v2/firestore";
 
+import dayjs from "./djs";
 import { db, logger } from './include'
 import * as Require from './require';
 import * as Err from './err';
 import { NUM_ROW, NUM_COL, CellState, Connect4Game, findMoveRow, GAMES_PATH, BoardState, findWin } from "../../common/connect4";
-import { GAME_LIST_EVENTS, GAME_LIST_EVENT_TRIGGER, GamesListPublic, GameListEventTrigger, GameListEvent, GAME_LIST_PUBLIC } from "../../common/game-list";
+import { GAME_LIST_EVENTS, GAME_LIST_EVENT_TRIGGER, GameListEventTrigger, GameListEvent, GAME_LIST_PUBLIC } from "../../common/game-list";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
 // Start writing functions
@@ -36,6 +37,17 @@ const checkAuth = onCall(async (req, rsp) => {
 
 const triggerRef = db.doc(GAME_LIST_EVENT_TRIGGER);
 
+/**
+ * Update the game list document
+ * 
+ * Adds the game list update event to the game list event collection
+ * 
+ * If necessary, triggers the 10s processing loop
+ * 
+ * @param gameId game id
+ * @param type type of event
+ * @returns 
+ */
 const updateGameListEvent = async (gameId: string, type: GameListEvent['type']) => {
   const now = Timestamp.now();
 
@@ -46,59 +58,67 @@ const updateGameListEvent = async (gameId: string, type: GameListEvent['type']) 
   };
   await db.collection(GAME_LIST_EVENTS).add(event);
 
+  const runUntil = dayjs().ceil('seconds', 10);
   const triggerDoc = await db.doc(GAME_LIST_EVENT_TRIGGER).get()
   // create trigger doc if doesn't exist
   if (!triggerDoc.exists) {
     return db.runTransaction(async txn => 
-      txn.create(triggerRef, {lastRanAt: now} satisfies GameListEventTrigger))
+      txn.create(triggerRef, {lastRunUntil: runUntil.toStamp()} satisfies GameListEventTrigger))
       .catch(() => {}) // don't fail creation
   } 
 
-  // this ensures game list event processing happens as most once a second:
-  const {lastRanAt} = triggerDoc.data() as GameListEventTrigger;
+  const {lastRunUntil} = triggerDoc.data() as GameListEventTrigger;
+
   // only take read-write lock if we're trying to update the trigger doc
-  if (lastRanAt.seconds+1 < now.seconds) {
+  if (!lastRunUntil || runUntil.isAfter(lastRunUntil.toDate())) {
     return db.runTransaction(async txn => {
-      const {lastRanAt} = (await txn.get(triggerRef)).data() as GameListEventTrigger
-      if (lastRanAt.seconds+1 < now.seconds) {
-        txn.set(triggerRef, {lastRanAt: now} satisfies GameListEventTrigger)
+      const {lastRunUntil} = (await txn.get(triggerRef)).data() as GameListEventTrigger
+      if (!lastRunUntil || runUntil.isAfter(lastRunUntil.toDate())) {
+        txn.set(triggerRef, {lastRunUntil: runUntil.toStamp()} satisfies GameListEventTrigger)
       }
     })
   }
 }
 
 const gameListRef = db.doc(GAME_LIST_PUBLIC)
-export const onProcessGameListEvents = onDocumentWritten(GAME_LIST_EVENT_TRIGGER, async () => {
+export const onProcessGameListEvents = onDocumentWritten(GAME_LIST_EVENT_TRIGGER, async (snapshot) => {
+  const {lastRunUntil} = snapshot.data?.after.data() as GameListEventTrigger
 
-  // get events sorted in ascending order
-  const eventQuery = await db.collection(GAME_LIST_EVENTS).orderBy('createdAt','asc').get();
+  // processes event 1/sec until current run is over
+  while (dayjs().isBefore(lastRunUntil.toDate())) {
+      // get events sorted in ascending order
+      const eventQuery = await db.collection(GAME_LIST_EVENTS).orderBy('createdAt','asc').get();
 
-  const update = eventQuery.docs
-    .map(d => d.data() as GameListEvent)
-    .reduce((update, evt) => {
-      const fieldPath = evt.gameId;
-
-      if (evt.type === 'ADD') {
-        update[fieldPath] = evt.createdAt;
-
-      } else if (evt.type === 'DELETE') {
-        if (update[fieldPath])
-          // if ADD was processed this read, just delete the ADD
-          delete update[fieldPath]
-        else
-          // otherwise delete the field from the listing
-          update[fieldPath] = FieldValue.delete();
-      }
-      return update;
-    }, {} as {[gameId:string]: Timestamp|FieldValue})
-  
-  logger.info(update);
-
-  // create update mapping
-  await gameListRef.set({list: update}, {merge: true});
-
-  // delete events
-  await Promise.all(eventQuery.docs.map(d => d.ref.delete()));
+      const update = eventQuery.docs
+        .map(d => d.data() as GameListEvent)
+        .reduce((update, evt) => {
+          const fieldPath = evt.gameId;
+    
+          if (evt.type === 'ADD') {
+            update[fieldPath] = evt.createdAt;
+    
+          } else if (evt.type === 'DELETE') {
+            if (update[fieldPath])
+              // if ADD was processed this read, just delete the ADD
+              delete update[fieldPath]
+            else
+              // otherwise delete the field from the listing
+              update[fieldPath] = FieldValue.delete();
+          }
+          return update;
+        }, {} as {[gameId:string]: Timestamp|FieldValue})
+      
+      logger.info(update);
+    
+      // create update mapping
+      await gameListRef.set({list: update}, {merge: true});
+    
+      // delete events
+      await Promise.all(eventQuery.docs.map(d => d.ref.delete()));
+    
+      // wait a second
+      await new Promise(resolve => setTimeout(resolve, 1000));
+  }
 })
 
 // ** GAME FUNCTIONS ** //

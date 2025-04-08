@@ -9,10 +9,11 @@
     "outDir": "lib",
     "sourceMap": true,
     "strict": true,
-    "target": "es2017"
+    "target": "es2017",
+    "allowSyntheticDefaultImports": true,
   },
   "compileOnSave": true,
   "include": [
     "src"
-  ]
+, "src/djs.ts"  ]
 }

@@ -12,7 +12,7 @@ export interface GamesListPublic {
 }
 
 export interface GameListEventTrigger {
-  lastRanAt: Timestamp
+  lastRunUntil: Timestamp
 }
 
 export interface GameListEvent {
